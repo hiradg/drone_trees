@@ -57,18 +57,30 @@ class GroundControlAutomation:
                                                            MissionUpload(self.vehicle, self.missionUtility)])
         # Flight Manager
 
-        safety_low_battery = safety_module(self.va, name="Low Battery",
+        safety_low_battery = safety_module(self.va, name="Low Battery Check",
                                    safety_check=BatteryLevelAbove(self.vehicle, 30),
                                    mishap_tts="Low battery", 
-                                   fallback=go_SAFTI(self.vehicle, self.va, self.SAFTI))
+                                   fallback=go_SAFTI(self.vehicle, self.SAFTI))
 
         safety_obstacle_check = safety_module(self.va, name="Obstacle Check", 
                                       safety_check=CheckObstacle(self.vehicle, 2),
                                       mishap_tts="Obstacle ahead",
-                                      fallback=go_SAFTI(self.vehicle, self.va, self.SAFTI))
+                                      fallback=go_SAFTI(self.vehicle, self.SAFTI))
+        
+        safety_gps_glitch_check = safety_module(self.va, name="GPS Glitch Check", 
+                                      safety_check=CheckGPSGlitch(self.vehicle),
+                                      mishap_tts="GPS Glitch",
+                                      fallback=go_SAFTI(self.vehicle, self.SAFTI))
+        
+        safety_rc_link_check = safety_module(self.va, name="RC Link Check", 
+                                      safety_check=CheckRCLink(self.vehicle),
+                                      mishap_tts="No RC",
+                                      fallback=go_SAFTI(self.vehicle, self.SAFTI))
+        
+        
 
 
-        flight_manager = fm_behaviour(self.vehicle, self.va, self.wp_count, safety_modules=[safety_low_battery, safety_obstacle_check])
+        flight_manager = fm_behaviour(self.vehicle, self.va, self.wp_count, safety_modules=[safety_gps_glitch_check, safety_low_battery, safety_rc_link_check, safety_obstacle_check])
 
         # Root
         root = py_trees.decorators.OneShot(py_trees.composites.Sequence(name="OPS",
@@ -82,7 +94,7 @@ class GroundControlAutomation:
         return root
 
     def run(self, root):
-        #self.logger = log(root, sys.argv[1])
+        self.logger = log(root, sys.argv[1])
 
         # tree
         behaviour_tree = py_trees.trees.BehaviourTree(root)
@@ -102,7 +114,7 @@ class GroundControlAutomation:
                                                     previously_visited=snapshot_visitor.visited)
             print(unicode_tree)
             # log
-            #self.logger.logging(behaviour_tree.count, dot=True)
+            self.logger.logging(behaviour_tree.count, dot=True)
             # Check for successful landing before exiting the loop
             if behaviour_tree.root.children[0].children[-1].status == py_trees.common.Status.SUCCESS:
                 self._loop_should_exit = True

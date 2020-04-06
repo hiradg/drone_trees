@@ -199,6 +199,73 @@ class CheckGPS(py_trees.behaviour.Behaviour):
         else:
             return py_trees.common.Status.FAILURE
 
+class CheckRCLink(py_trees.behaviour.Behaviour):
+
+    def __init__(self, vehicle):
+        super(CheckRCLink, self).__init__("Check RC Link?")
+        self._vehicle = vehicle
+        self._text = None
+        self._failure = False
+        self._success = True
+
+    def checkMavlink(self):
+        @self._vehicle.on_message('STATUSTEXT')
+        def listener(dkself, name, msg):
+            self._text = msg.text
+    
+    def checkFailureCond(self):
+        if self._text == "Radio Failsafe - Continuing Auto Mode" or self._text == "PreArm: Radio failsafe on" or self._text == "Radio Failsafe" or self._text == "Radio Failsafe - Disarming":
+            self._failure=True
+            self._success=False
+
+    def checkSuccessCond(self):
+        if self._text == "Radio Failsafe Cleared":
+            self._failure=False
+            self._success=True
+
+    def update(self):
+        self.checkMavlink()
+        self.checkFailureCond()
+        self.checkSuccessCond()
+        if self._failure:
+            return py_trees.common.Status.FAILURE
+        elif self._success:
+            return py_trees.common.Status.SUCCESS
+
+
+class CheckGPSGlitch(py_trees.behaviour.Behaviour):
+
+    def __init__(self, vehicle):
+        super(CheckGPSGlitch, self).__init__("Check GPS Glitch?")
+        self._vehicle = vehicle
+        self._text = None
+        self._failure = False
+        self._success = True
+
+    def checkMavlink(self):
+        @self._vehicle.on_message('STATUSTEXT')
+        def listener(dkself, name, msg):
+            self._text = msg.text
+
+    def checkFailureCond(self):
+        if self._text == "GPS Glitch":
+            self._failure=True
+            self._success=False
+
+    def checkSuccessCond(self):
+        if self._text == "GPS Glitch cleared":
+            self._failure=False
+            self._success=True
+
+    def update(self):
+        self.checkMavlink()
+        self.checkFailureCond()
+        self.checkSuccessCond()
+        if self._failure:
+            return py_trees.common.Status.FAILURE
+        elif self._success:
+            return py_trees.common.Status.SUCCESS
+
 class CheckObstacle(py_trees.behaviour.Behaviour):
 
     def __init__(self, vehicle, clearance):
@@ -470,7 +537,7 @@ def preflight_Module(
 
     return bt
 
-def go_SAFTI(vehicle, va, safti_wp_n):
+def go_SAFTI(vehicle, safti_wp_n):
     bt = py_trees.composites.Sequence(name="Go SAFTI",
                                       children=[CheckCounterLessThan(vehicle, safti_wp_n),
                                                 SetCounter(vehicle, safti_wp_n)])
@@ -607,8 +674,8 @@ class FlightManager:
                 wrap.append(py_trees.decorators.OneShot(py_trees.decorators.FailureIsRunning(self.at_wp(wp_n), name="F=R")))
             else:
                 # Precond Construction
-                rtk_check = precond_module(self._va, name="RTK Check", safety_check=CheckGPS(self._vehicle, 5), mishap_voice="No RTK fix", fallback=go_SAFTI(self._vehicle, self._va, (self._wp_count-2)), wait=True)
-                clearance_check = precond_module(self._va, name="Clearance > {}?".format(int(clearance[wp_n])), safety_check=CheckObstacle(self._vehicle, clearance[wp_n]), mishap_voice="Clearance Fail", fallback=go_SAFTI(self._vehicle, self._va, (self._wp_count-2)))
+                rtk_check = precond_module(self._va, name="RTK Check", safety_check=CheckGPS(self._vehicle, 5), mishap_voice="No RTK fix", fallback=go_SAFTI(self._vehicle, (self._wp_count-2)), wait=True)
+                clearance_check = precond_module(self._va, name="Clearance > {}?".format(int(clearance[wp_n])), safety_check=CheckObstacle(self._vehicle, clearance[wp_n]), mishap_voice="Clearance Fail", fallback=go_SAFTI(self._vehicle, (self._wp_count-2)))
                 rtk_check.blackbox_level = py_trees.common.BlackBoxLevel.DETAIL
                 clearance_check.blackbox_level = py_trees.common.BlackBoxLevel.DETAIL
                 # Mission leg construction
