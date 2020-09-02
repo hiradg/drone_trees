@@ -263,6 +263,56 @@ class IsDistSensorAvbl(py_trees.behaviour.Behaviour):
                 return py_trees.common.Status.FAILURE
 
 
+class CheckDistBounded(py_trees.behaviour.Behaviour):
+    """
+    Condition leaf node for checking distance sensor reading against a
+    specified limit.
+        FAILURE: measured distance is less than or greater than the specified
+                 limit or no distance sensor
+        SUCCESS: measured distance is within the specified limit
+
+    Parameters
+    ----------
+    vehicle : dronekit.Vehicle
+        The MAVLINK interface
+
+    sensor_id : int
+        Distance sensor id
+
+    lower_limit_m : float
+        Lower distance limit in metres
+
+    upper_limit_m : float
+        Upper distance limit in metres
+
+    Returns
+    -------
+    node : py_trees.common.Status
+        Status of the leaf node behaviour
+
+    """
+    def __init__(self, vehicle, sensor_id, lower_limit_m, upper_limit_m):
+        super(CheckDistBounded, self).__init__(
+            "{} < Distance {} < {} ?".format(lower_limit_m, sensor_id,
+                                             upper_limit_m))
+        self._veh = vehicle
+        self._id = sensor_id
+        self._ll = lower_limit_m
+        self._ul = upper_limit_m
+
+    def update(self):
+        current_dist = self._veh.distance_sensors[self._id].current_distance
+        if current_dist is None:
+            self.feedback_message = ('Nothing from sensor {}'.format(self._id))
+            return py_trees.common.Status.FAILURE
+        elif (self._ll < current_dist/100. < self._ul):
+            self.feedback_message = 'Yes, it''s {}'.format(current_dist/100.)
+            return py_trees.common.Status.SUCCESS
+        else:
+            self.feedback_message = 'No, it''s {}'.format(current_dist/100.)
+            return py_trees.common.Status.FAILURE
+
+
 class CheckDistance(py_trees.behaviour.Behaviour):
     """
     Condition leaf node for checking distance sensor reading against a

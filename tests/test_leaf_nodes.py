@@ -252,6 +252,50 @@ def test_CheckDistance(copter_sitl_ground):
     vehicle.close()                              # close local vehicle instance
 
 
+def test_CheckDistBounded(copter_sitl_ground):
+    """Verify that CheckDistBounded behaviour responds SUCCESS for distance-
+    sensor reading within the limit and FAILURE for out of range or no data"""
+
+    # Make a local vehicle instance
+    vehicle = connect(copter_sitl_ground.connection_string(),
+                      vehicle_class=DroneTreeVehicle)
+    # Set distance sensor reading to 5m
+    vehicle.parameters['RNGFND2_SCALING'] = 1
+    sleep(0.5)                        # wait for parameter change to take place
+
+    """-----  Expect FAILURE -----"""
+
+    # Distance sensor reading None
+    dist_check_none = lf.CheckDistBounded(vehicle, 0, 1., 10.)
+    dist_check_none.tick_once()                  # tick behaviour to get status
+    assert dist_check_none.status == Status.FAILURE
+    assert dist_check_none.feedback_message == 'Nothing from sensor 0'
+
+    # Distance sensor reading below limit
+    dist_check_below = lf.CheckDistBounded(vehicle, 1, 6., 10.)
+    dist_check_below.tick_once()                 # tick behaviour to get status
+    dist_check_below.tick_once()                 # tick behaviour to get status
+    assert dist_check_below.status == Status.FAILURE
+    assert dist_check_below.feedback_message != 'Nothing from sensor 1'
+
+    # Distance sensor reading above limit
+    dist_check_equal = lf.CheckDistBounded(vehicle, 1, 1., 2.)
+    dist_check_equal.tick_once()                 # tick behaviour to get status
+    dist_check_equal.tick_once()                 # tick behaviour to get status
+    assert dist_check_equal.status == Status.FAILURE
+    assert dist_check_equal.feedback_message != 'Nothing from sensor 1'
+
+    """-----  Expect SUCCESS -----"""
+
+    # Distance sensor reading within limit
+    dist_check_above = lf.CheckDistBounded(vehicle, 1, 1., 10.)
+    dist_check_above.tick_once()                 # tick behaviour to get status
+    assert dist_check_above.status == Status.SUCCESS
+    assert dist_check_above.feedback_message != 'Nothing from sensor 1'
+
+    vehicle.close()                              # close local vehicle instance
+
+
 def test_AltAbove(copter_sitl_guided_to):
     """Verify AltLocalAbove (AGL) and AltGlobalAbove (MSL) behaviours respond
     SUCCESS to current altitude above reference and FAILURE for below
