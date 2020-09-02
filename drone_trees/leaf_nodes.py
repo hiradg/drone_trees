@@ -218,6 +218,51 @@ class CheckGPS(py_trees.behaviour.Behaviour):
             return py_trees.common.Status.FAILURE
 
 
+class IsDistSensorAvbl(py_trees.behaviour.Behaviour):
+    """
+    Condition leaf node for checking availability of the distance sensor
+        FAILURE: regular dynamic reading or no data received from the indicated
+                 distance sensor. Note that the node needs a minimum of 2 ticks
+                 to identify change between each timestep.
+        SUCCESS: regular dynamic reading received from the indicated distance-
+                 sensor
+
+    Parameters
+    ----------
+    vehicle : dronekit.Vehicle
+        The MAVLINK interface
+
+    sensor_id : int
+        Distance sensor id
+
+    Returns
+    -------
+    node : py_trees.common.Status
+        Status of the leaf node behaviour
+
+    """
+    def __init__(self, vehicle, sensor_id):
+        super(IsDistSensorAvbl, self).__init__('Is distance sensor\navailable?')
+        self._vehicle = vehicle
+        self._id = sensor_id
+        self._last_dist = 0
+
+    def update(self):
+        current_dist = self._vehicle.distance_sensors[self._id].current_distance
+        if current_dist is None:
+            self.feedback_message = f'No, nothing from sensor {self._id}'
+            return py_trees.common.Status.FAILURE
+        else:
+            if abs(current_dist-self._last_dist) > 0 and self._last_dist != 0:
+                self._last_dist = current_dist
+                self.feedback_message = f'Yes, sensor {self._id} is active'
+                return py_trees.common.Status.SUCCESS
+            else:
+                self.feedback_message = f'No, sensor {self._id} is not active'
+                self._last_dist = current_dist
+                return py_trees.common.Status.FAILURE
+
+
 class CheckDistance(py_trees.behaviour.Behaviour):
     """
     Condition leaf node for checking distance sensor reading against a
