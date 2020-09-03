@@ -564,6 +564,37 @@ def test_SetParam(copter_sitl_ground):
     vehicle.close()                # close local vehicle instance
 
 
+def test_CheckParam(copter_sitl_ground):
+    """Verify that the CheckParam behaviour responds SUCCESS when the parameter
+    value is the same as the reference and failure for otherwise"""
+
+    # Make a local vehicle instance
+    vehicle = connect(copter_sitl_ground.connection_string(), wait_ready=True)
+
+    """-----  Expect SUCCESS -----"""
+
+    des_param = 'SIM_GPS_NUMSATS'                  # desired parameter to check
+    ref_value = vehicle.parameters['SIM_GPS_NUMSATS']      # ref value to check
+    set_param = lf.CheckParam(vehicle, des_param, ref_value)
+    set_param.tick_once()                        # tick behaviour to get status
+    # Check desired param changed to the new value
+    assert vehicle.parameters['SIM_GPS_NUMSATS'] == ref_value
+    assert set_param.status == Status.SUCCESS    # Check response
+
+    """-----  Expect FAILURE -----"""
+
+    # Change the parameter value to cause a failure
+    vehicle.parameters['SIM_GPS_NUMSATS'] = ref_value + 5
+    # Check parameter value has been changed for test validity
+    assert vehicle.parameters['SIM_GPS_NUMSATS'] != ref_value
+
+    set_param = lf.CheckParam(vehicle, des_param, ref_value)
+    set_param.tick_once()                        # tick behaviour to get status
+    assert set_param.status == Status.FAILURE    # Check response
+
+    vehicle.close()                              # close local vehicle instance
+
+
 def test_Land(copter_sitl_guided_to):
     """Verify that the Land behaviour results in a mode change to
     Return-to-Launch and responds SUCCESS after execution"""

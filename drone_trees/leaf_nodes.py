@@ -116,7 +116,6 @@ class SetParam(py_trees.behaviour.Behaviour):
     Leaf node for setting ardupilot parameter.
     <https://ardupilot.org/copter/docs/parameters.html>
     Returns SUCCESS when the parameter is set.
-    is set.
 
     Parameters
     ----------
@@ -138,7 +137,7 @@ class SetParam(py_trees.behaviour.Behaviour):
 
     def __init__(self, vehicle, param_name, new_value):
         # use name of mode as label for behaviour
-        super(SetParam, self).__init__("%s=%i" % (param_name, new_value))
+        super(SetParam, self).__init__(f"Set {param_name} to {new_value}")
         self._vehicle = vehicle
         self._param_name = param_name
         self._new_value = new_value
@@ -146,6 +145,48 @@ class SetParam(py_trees.behaviour.Behaviour):
     def update(self):
         self._vehicle.parameters[self._param_name] = self._new_value
         return py_trees.common.Status.SUCCESS
+
+
+class CheckParam(py_trees.behaviour.Behaviour):
+    """
+    Condition leaf node for checking vehicle parameter against reference value.
+    <https://ardupilot.org/copter/docs/parameters.html>
+    Returns SUCCESS for parameter matching reference value and FAILURE for
+    otherwise.
+
+    Parameters
+    ----------
+    vehicle : dronekit.Vehicle
+        The MAVLINK interface
+
+    param_name : str
+        Name of the ardupilot parameter
+
+    ref_value : int or float or bool
+        Reference value to check against. Type depends on the parameter
+
+    Returns
+    -------
+    node : py_trees.common.Status
+        Status of the leaf node behaviour
+
+    """
+
+    def __init__(self, vehicle, param_name, ref_value):
+        # use name of mode as label for behaviour
+        super(CheckParam, self).__init__(f"Is {param_name} == {ref_value}")
+        self._vehicle = vehicle
+        self._param_name = param_name
+        self._ref_value = ref_value
+
+    def update(self):
+        value = self._vehicle.parameters[self._param_name]
+        if value == self._ref_value:
+            self.feedback_message = 'Yes'
+            return py_trees.common.Status.SUCCESS
+        else:
+            self.feedback_message = f"No, it''s {value}"
+            return py_trees.common.Status.FAILURE
 
 
 class Land(py_trees.behaviour.Behaviour):
